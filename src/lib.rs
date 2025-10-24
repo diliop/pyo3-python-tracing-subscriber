@@ -72,7 +72,7 @@ where
         let extensions = current_span.as_ref().map(|span| span.extensions());
         let json_event = json!(event.as_serde()).to_string();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_state =
                 extensions.map(|ext| ext.get::<Py<PyAny>>().map(|state| state.clone_ref(py)));
             let _ = py_on_event.bind(py).call((json_event, py_state), None);
@@ -89,7 +89,7 @@ where
         let json_id = json!(span_id.as_serde()).to_string();
         let mut extensions = current_span.extensions_mut();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let Ok(py_state) = py_on_new_span.bind(py).call((json_attrs, json_id), None) else {
                 return;
             };
@@ -106,7 +106,7 @@ where
         let json_id = json!(span_id.as_serde()).to_string();
         let py_state = current_span.extensions_mut().remove::<Py<PyAny>>();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let _ = py_on_close.bind(py).call((json_id, py_state), None);
         })
     }
@@ -120,7 +120,7 @@ where
         let json_values = json!(values.as_serde()).to_string();
         let extensions = current_span.extensions();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_state = extensions
                 .get::<Py<PyAny>>()
                 .map(|state| state.clone_ref(py));
@@ -216,7 +216,7 @@ mod tests {
         INIT.call_once(|| {
             pyo3::prepare_freethreaded_python();
         });
-        let (py_layer, rs_layer) = Python::with_gil(|py| {
+        let (py_layer, rs_layer) = Python::attach(|py| {
             let py_layer = Bound::new(py, PythonLayer::new()).unwrap();
             let (py_layer, py_layer_unbound) = (py_layer.clone().into_any(), py_layer.unbind());
             (py_layer_unbound, PythonCallbackLayerBridge::new(py_layer))
@@ -245,7 +245,7 @@ mod tests {
         let expected_closed_spans = vec![0];
         let expected_records = vec![(json!({"data": "some data"}), 0)];
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed = py_layer.borrow(py);
             assert_eq!(&expected_events, &borrowed.events);
             assert_eq!(&expected_new_spans, &borrowed.new_spans);
@@ -273,7 +273,7 @@ mod tests {
         let expected_closed_spans = vec![1, 0];
         let expected_records = vec![(json!({"data": "some data"}), 1)];
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed = py_layer.borrow(py);
             assert_eq!(&expected_events, &borrowed.events);
             assert_eq!(&expected_new_spans, &borrowed.new_spans);
