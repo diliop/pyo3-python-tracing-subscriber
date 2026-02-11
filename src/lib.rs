@@ -214,7 +214,7 @@ mod tests {
 
     fn initialize_tracing() -> (Py<PythonLayer>, tracing::dispatcher::DefaultGuard) {
         INIT.call_once(|| {
-            pyo3::prepare_freethreaded_python();
+            pyo3::initialize();
         });
         let (py_layer, rs_layer) = Python::attach(|py| {
             let py_layer = Bound::new(py, PythonLayer::new()).unwrap();
